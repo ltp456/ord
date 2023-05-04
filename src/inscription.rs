@@ -8,6 +8,7 @@ use {
     util::taproot::TAPROOT_ANNEX_PREFIX,
     Script, Witness,
   },
+  serde::{Serialize,Deserialize},
   std::{iter::Peekable, str},
 };
 
@@ -16,7 +17,7 @@ const PROTOCOL_ID: &[u8] = b"ord";
 const BODY_TAG: &[u8] = &[];
 const CONTENT_TYPE_TAG: &[u8] = &[1];
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
 pub(crate) struct Inscription {
   body: Option<Vec<u8>>,
   content_type: Option<Vec<u8>>,

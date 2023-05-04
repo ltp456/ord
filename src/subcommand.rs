@@ -12,6 +12,7 @@ pub mod subsidy;
 pub mod supply;
 pub mod traits;
 pub mod wallet;
+pub mod v1;
 
 fn print_json(output: impl Serialize) -> Result {
   serde_json::to_writer_pretty(io::stdout(), &output)?;
