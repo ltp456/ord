@@ -43,6 +43,21 @@ pub(crate) struct ExportTransaction {
   pub(crate) inscription: Option<InscriptionId>,
   pub(crate) transaction: Transaction,
   pub(crate) txid: Txid,
+
+  pub(crate) inputs: Vec<ExportUTXO>,
+  pub(crate) outputs: Vec<ExportUTXO>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct ExportUTXO {
+  pub outpoint: String,
+  pub value: String,
+  pub script_pubkey: String,
+  pub address: String,
+}
+
+
+
+
 
 

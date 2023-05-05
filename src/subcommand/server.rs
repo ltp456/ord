@@ -37,7 +37,7 @@ use {
   },
 };
 
-use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportTransaction};
+use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportTransaction, ExportUTXO, ScriptPubKey};
 
 mod error;
 
@@ -924,26 +924,36 @@ impl Server {
       .get_transaction(txid)?
       .ok_or_not_found(|| format!("transaction {txid}"))?;
 
+    let mut inputs = Vec::new();
+    for item in &transaction.input {
+      inputs.push(ExportUTXO {
+        outpoint: item.previous_output.to_string(),
+        value: Default::default(),
+        script_pubkey: Default::default(),
+        address: Default::default(),
+      });
+    }
+    let mut outputs = Vec::new();
+    for (vout, output) in transaction.output.iter().enumerate() {
+      let outpoint = OutPoint::new(transaction.txid(), vout as u32);
+      let address = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) })?;
+      outputs.push(ExportUTXO {
+        outpoint: outpoint.to_string(),
+        value: output.value.to_string(),
+        script_pubkey: output.script_pubkey.asm(),
+        address: address.to_string(),
+      });
+    }
+
     Ok(Json(ExportTransaction {
       blockhash,
       chain: page_config.chain,
       txid: transaction.txid(),
+      inputs: inputs,
       transaction,
       inscription: inscription.map(|_| txid.into()),
+      outputs: outputs,
     }))
-
-
-    // Ok(
-    //   TransactionHtml::new(
-    //     index
-    //       .get_transaction(txid)?
-    //       .ok_or_not_found(|| format!("transaction {txid}"))?,
-    //     blockhash,
-    //     inscription.map(|_| txid.into()),
-    //     page_config.chain,
-    //   )
-    //     .page(page_config, index.has_sat_index()?),
-    // )
   }
 
 
