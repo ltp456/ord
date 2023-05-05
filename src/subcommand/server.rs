@@ -3,31 +3,32 @@ use {
     deserialize_from_str::DeserializeFromStr,
     error::{OptionExt, ServerError, ServerResult},
   },
-  super::*,
+  axum::{
+    body,
+    Json,
+    extract::{Extension, Path, Query},
+    headers::UserAgent,
+    http::{header, HeaderMap, HeaderValue, StatusCode, Uri},
+    response::{IntoResponse, Redirect, Response},
+    Router,
+    routing::get, TypedHeader,
+  },
+  axum_server::Handle,
   crate::page_config::PageConfig,
   crate::templates::{
     BlockHtml, ClockSvg, HomeHtml, InputHtml, InscriptionHtml, InscriptionsHtml, OutputHtml,
     PageContent, PageHtml, PreviewAudioHtml, PreviewImageHtml, PreviewPdfHtml, PreviewTextHtml,
     PreviewUnknownHtml, PreviewVideoHtml, RangeHtml, RareTxt, SatHtml, TransactionHtml,
   },
-  axum::{
-    body,
-    extract::{Extension, Path, Query},
-    headers::UserAgent,
-    http::{header, HeaderMap, HeaderValue, StatusCode, Uri},
-    response::{IntoResponse, Redirect, Response},
-    routing::get,
-    Router, TypedHeader,
-  },
-  axum_server::Handle,
   rust_embed::RustEmbed,
   rustls_acme::{
     acme::{LETS_ENCRYPT_PRODUCTION_DIRECTORY, LETS_ENCRYPT_STAGING_DIRECTORY},
+    AcmeConfig,
     axum::AxumAcceptor,
     caches::DirCache,
-    AcmeConfig,
   },
   std::{cmp::Ordering, str},
+  super::*,
   tokio_stream::StreamExt,
   tower_http::{
     compression::CompressionLayer,
@@ -35,6 +36,8 @@ use {
     set_header::SetResponseHeaderLayer,
   },
 };
+
+use crate::subcommand::v1::{InscriptionDetail, PageData};
 
 mod error;
 
@@ -90,25 +93,25 @@ impl Display for StaticHtml {
 #[derive(Debug, Parser)]
 pub(crate) struct Server {
   #[clap(
-    long,
-    default_value = "0.0.0.0",
-    help = "Listen on <ADDRESS> for incoming requests."
+  long,
+  default_value = "0.0.0.0",
+  help = "Listen on <ADDRESS> for incoming requests."
   )]
   address: String,
   #[clap(
-    long,
-    help = "Request ACME TLS certificate for <ACME_DOMAIN>. This ord instance must be reachable at <ACME_DOMAIN>:443 to respond to Let's Encrypt ACME challenges."
+  long,
+  help = "Request ACME TLS certificate for <ACME_DOMAIN>. This ord instance must be reachable at <ACME_DOMAIN>:443 to respond to Let's Encrypt ACME challenges."
   )]
   acme_domain: Vec<String>,
   #[clap(
-    long,
-    help = "Listen on <HTTP_PORT> for incoming HTTP requests. [default: 80]."
+  long,
+  help = "Listen on <HTTP_PORT> for incoming HTTP requests. [default: 80]."
   )]
   http_port: Option<u16>,
   #[clap(
-    long,
-    group = "port",
-    help = "Listen on <HTTPS_PORT> for incoming HTTPS requests. [default: 443]."
+  long,
+  group = "port",
+  help = "Listen on <HTTPS_PORT> for incoming HTTPS requests. [default: 443]."
   )]
   https_port: Option<u16>,
   #[clap(long, help = "Store ACME TLS certificates in <ACME_CACHE>.")]
@@ -168,6 +171,11 @@ impl Server {
         .route("/static/*path", get(Self::static_asset))
         .route("/status", get(Self::status))
         .route("/tx/:txid", get(Self::transaction))
+        //-------------------v1-----------------
+        .route("/v1/inscription/:inscription_id", get(Self::inscription_v1))
+        .route("/v1/inscriptions", get(Self::inscriptions_v1))
+        .route("/v1/inscriptions/:from", get(Self::inscriptions_from_v1))
+        //------------------v1------------------
         .layer(Extension(index))
         .layer(Extension(page_config))
         .layer(Extension(Arc::new(config)))
@@ -382,7 +390,7 @@ impl Server {
         blocktime: index.blocktime(sat.height())?,
         inscription: index.get_inscription_id_by_sat(sat)?,
       }
-      .page(page_config, index.has_sat_index()?),
+        .page(page_config, index.has_sat_index()?),
     )
   }
 
@@ -434,7 +442,7 @@ impl Server {
         chain: page_config.chain,
         output,
       }
-      .page(page_config, index.has_sat_index()?),
+        .page(page_config, index.has_sat_index()?),
     )
   }
 
@@ -527,7 +535,7 @@ impl Server {
         inscription.map(|_| txid.into()),
         page_config.chain,
       )
-      .page(page_config, index.has_sat_index()?),
+        .page(page_config, index.has_sat_index()?),
     )
   }
 
@@ -663,7 +671,7 @@ impl Server {
     } else {
       &path
     })
-    .ok_or_not_found(|| format!("asset {path}"))?;
+      .ok_or_not_found(|| format!("asset {path}"))?;
     let body = body::boxed(body::Full::from(content.data));
     let mime = mime_guess::from_path(path).first_or_octet_stream();
     Ok(
@@ -804,7 +812,7 @@ impl Server {
             text: str::from_utf8(content)
               .map_err(|err| anyhow!("Failed to decode {inscription_id} text: {err}"))?,
           }
-          .into_response(),
+            .into_response(),
         )
       }
       Media::Unknown => Ok(PreviewUnknownHtml.into_response()),
@@ -864,7 +872,7 @@ impl Server {
         satpoint,
         timestamp: timestamp(entry.timestamp),
       }
-      .page(page_config, index.has_sat_index()?),
+        .page(page_config, index.has_sat_index()?),
     )
   }
 
@@ -895,9 +903,100 @@ impl Server {
         next,
         prev,
       }
-      .page(page_config, index.has_sat_index()?),
+        .page(page_config, index.has_sat_index()?),
     )
   }
+
+
+//-------------v1 start-----------------
+
+  async fn inscriptions_v1(
+    Extension(page_config): Extension<Arc<PageConfig>>,
+    Extension(index): Extension<Arc<Index>>,
+    Path(from): Path<u64>,
+  ) -> ServerResult<Json<PageData<InscriptionId>>> {
+    Self::inscriptions_inner_v1(page_config, index, Some(from)).await
+  }
+
+
+  async fn inscriptions_from_v1(
+    Extension(page_config): Extension<Arc<PageConfig>>,
+    Extension(index): Extension<Arc<Index>>,
+    Path(from): Path<u64>,
+  ) -> ServerResult<Json<PageData<InscriptionId>>> {
+    Self::inscriptions_inner_v1(page_config, index, Some(from)).await
+  }
+
+
+  async fn inscriptions_inner_v1(
+    page_config: Arc<PageConfig>,
+    index: Arc<Index>,
+    from: Option<u64>,
+  ) -> ServerResult<Json<PageData<InscriptionId>>> {
+    let (inscriptions, prev, next) = index.get_latest_inscriptions_with_prev_and_next(100, from)?;
+    Ok(Json(PageData {
+      data: inscriptions,
+      next,
+      prev,
+    }))
+  }
+
+  async fn inscription_v1(
+    Extension(page_config): Extension<Arc<PageConfig>>,
+    Extension(index): Extension<Arc<Index>>,
+    Path(inscription_id): Path<InscriptionId>,
+  ) -> ServerResult<Json<InscriptionDetail>> {
+    let entry = index
+      .get_inscription_entry(inscription_id)?
+      .ok_or_not_found(|| format!("inscription {inscription_id}"))?;
+
+    let inscription = index
+      .get_inscription_by_id(inscription_id)?
+      .ok_or_not_found(|| format!("inscription {inscription_id}"))?;
+
+    let satpoint = index
+      .get_inscription_satpoint_by_id(inscription_id)?
+      .ok_or_not_found(|| format!("inscription {inscription_id}"))?;
+
+    let output = index
+      .get_transaction(satpoint.outpoint.txid)?
+      .ok_or_not_found(|| format!("inscription {inscription_id} current transaction"))?
+      .output
+      .into_iter()
+      .nth(satpoint.outpoint.vout.try_into().unwrap())
+      .ok_or_not_found(|| format!("inscription {inscription_id} current transaction output"))?;
+
+    let previous = if let Some(previous) = entry.number.checked_sub(1) {
+      Some(
+        index
+          .get_inscription_id_by_inscription_number(previous)?
+          .ok_or_not_found(|| format!("inscription {previous}"))?,
+      )
+    } else {
+      None
+    };
+
+    let next = index.get_inscription_id_by_inscription_number(entry.number + 1)?;
+
+    Ok(Json(InscriptionDetail {
+      chain: page_config.chain,
+      genesis_fee: entry.fee,
+      genesis_height: entry.height,
+      inscription,
+      inscription_id,
+      next,
+      number: entry.number,
+      output,
+      previous,
+      sat: entry.sat,
+      satpoint,
+      timestamp: entry.timestamp,
+    }))
+  }
+
+
+  //-------------v1 end---------------
+
 
   async fn redirect_http_to_https(
     Extension(mut destination): Extension<String>,
@@ -913,7 +1012,7 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
-  use {super::*, reqwest::Url, std::net::TcpListener};
+  use {reqwest::Url, std::net::TcpListener, super::*};
 
   struct TestServer {
     bitcoin_rpc_server: test_bitcoincore_rpc::Handle,
@@ -1063,7 +1162,7 @@ mod tests {
       assert_eq!(
         response
           .headers()
-          .get(header::CONTENT_SECURITY_POLICY,)
+          .get(header::CONTENT_SECURITY_POLICY)
           .unwrap(),
         content_security_policy
       );
@@ -1155,8 +1254,8 @@ mod tests {
       parse_server_args(
         "ord server --https-port 433 --acme-cache foo --acme-contact bar --acme-domain baz"
       )
-      .1
-      .http_port(),
+        .1
+        .http_port(),
       None
     );
   }
@@ -1167,8 +1266,8 @@ mod tests {
       parse_server_args(
         "ord server --https-port 1000 --acme-cache foo --acme-contact bar --acme-domain baz"
       )
-      .1
-      .https_port(),
+        .1
+        .https_port(),
       Some(1000)
     );
   }
@@ -1179,8 +1278,8 @@ mod tests {
       parse_server_args(
         "ord server --https --http --acme-cache foo --acme-contact bar --acme-domain baz"
       )
-      .1
-      .http_port(),
+        .1
+        .http_port(),
       Some(80)
     );
   }
@@ -1191,8 +1290,8 @@ mod tests {
       parse_server_args(
         "ord server --https --http --acme-cache foo --acme-contact bar --acme-domain baz"
       )
-      .1
-      .https_port(),
+        .1
+        .https_port(),
       Some(443)
     );
   }
@@ -1211,7 +1310,7 @@ mod tests {
       "--acme-contact",
       "bar"
     ])
-    .is_ok());
+      .is_ok());
   }
 
   #[test]
@@ -1228,7 +1327,7 @@ mod tests {
       "--acme-domain",
       "bar"
     ])
-    .is_ok());
+      .is_ok());
   }
 
   #[test]
@@ -1433,6 +1532,7 @@ mod tests {
 </dl>.*",
     );
   }
+
   #[test]
   fn sat_number() {
     TestServer::new().assert_response_regex("/sat/0", StatusCode::OK, ".*<h1>Sat 0</h1>.*");
@@ -1602,15 +1702,15 @@ mod tests {
     test_server.mine_blocks(1);
 
     test_server.assert_response_regex(
-    "/",
-    StatusCode::OK,
-    ".*<title>Ordinals</title>.*
+      "/",
+      StatusCode::OK,
+      ".*<title>Ordinals</title>.*
 <h2>Latest Blocks</h2>
 <ol start=1 reversed class=blocks>
   <li><a href=/block/[[:xdigit:]]{64}>[[:xdigit:]]{64}</a></li>
   <li><a href=/block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f>000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f</a></li>
 </ol>.*",
-  );
+    );
   }
 
   #[test]
@@ -1629,10 +1729,10 @@ mod tests {
     test_server.mine_blocks(101);
 
     test_server.assert_response_regex(
-    "/",
-    StatusCode::OK,
-    ".*<ol start=101 reversed class=blocks>\n(  <li><a href=/block/[[:xdigit:]]{64}>[[:xdigit:]]{64}</a></li>\n){100}</ol>.*"
-  );
+      "/",
+      StatusCode::OK,
+      ".*<ol start=101 reversed class=blocks>\n(  <li><a href=/block/[[:xdigit:]]{64}>[[:xdigit:]]{64}</a></li>\n){100}</ol>.*",
+    );
   }
 
   #[test]
@@ -1972,7 +2072,7 @@ mod tests {
     assert_eq!(
       Server::content_response(Inscription::new(
         Some("text/plain".as_bytes().to_vec()),
-        None
+        None,
       )),
       None
     );
@@ -1984,7 +2084,7 @@ mod tests {
       Some("text/plain".as_bytes().to_vec()),
       Some(vec![1, 2, 3]),
     ))
-    .unwrap();
+      .unwrap();
 
     assert_eq!(headers["content-type"], "text/plain");
     assert_eq!(body, vec![1, 2, 3]);
@@ -2051,7 +2151,7 @@ mod tests {
         "text/plain;charset=utf-8",
         "<script>alert('hello');</script>",
       )
-      .to_witness(),
+        .to_witness(),
       ..Default::default()
     });
 
