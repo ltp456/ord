@@ -27,4 +27,11 @@ pub(crate) struct InscriptionDetail {
   pub(crate) satpoint: SatPoint,
   pub(crate) timestamp: u32,
   pub(crate) address: String,
+
+  pub(crate) offset: u64,
+  pub(crate) s_output: String,
+  pub(crate) location: String,
+  pub(crate) genesis_transaction: String,
+
 }
+

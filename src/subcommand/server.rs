@@ -977,22 +977,27 @@ impl Server {
     };
 
     let next = index.get_inscription_id_by_inscription_number(entry.number + 1)?;
-
-    let address = page_config.chain.address_from_script(&output.script_pubkey)?;
+    let address = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) })?;
     Ok(Json(InscriptionDetail {
       chain: page_config.chain,
       genesis_fee: entry.fee,
       genesis_height: entry.height,
-      inscription,
       inscription_id,
       next,
       number: entry.number,
       output,
       previous,
       sat: entry.sat,
-      satpoint,
       timestamp: entry.timestamp,
+
       address: address.to_string(),
+      offset: satpoint.offset,
+      s_output: satpoint.outpoint.to_string(),
+      location: satpoint.to_string(),
+      genesis_transaction: inscription_id.txid.to_string(),
+
+      inscription,
+      satpoint,
     }))
   }
 
