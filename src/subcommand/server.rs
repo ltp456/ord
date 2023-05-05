@@ -37,7 +37,7 @@ use {
   },
 };
 
-use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportTransaction, ExportUTXO, ScriptPubKey};
+use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportTransaction, ExportUTXO};
 
 mod error;
 
