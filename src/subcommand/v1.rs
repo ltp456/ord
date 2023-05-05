@@ -5,7 +5,7 @@ use {
 //--------v1 response-------------
 
 #[derive(Serialize, Deserialize)]
-pub struct PageData<T> {
+pub struct ExportInscriptions<T> {
   pub data: Vec<T>,
   pub next: Option<u64>,
   pub prev: Option<u64>,
@@ -13,7 +13,7 @@ pub struct PageData<T> {
 
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct InscriptionDetail {
+pub(crate) struct ExportInscription {
   pub(crate) chain: Chain,
   pub(crate) genesis_fee: u64,
   pub(crate) genesis_height: u64,
@@ -34,4 +34,15 @@ pub(crate) struct InscriptionDetail {
   pub(crate) genesis_transaction: String,
 
 }
+
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct ExportTransaction {
+  pub(crate) blockhash: Option<BlockHash>,
+  pub(crate) chain: Chain,
+  pub(crate) inscription: Option<InscriptionId>,
+  pub(crate) transaction: Transaction,
+  pub(crate) txid: Txid,
+}
+
 

@@ -37,7 +37,7 @@ use {
   },
 };
 
-use crate::subcommand::v1::{InscriptionDetail, PageData};
+use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportTransaction};
 
 mod error;
 
@@ -175,6 +175,7 @@ impl Server {
         .route("/v1/inscription/:inscription_id", get(Self::inscription_v1))
         .route("/v1/inscriptions", get(Self::inscriptions_v1))
         .route("/v1/inscriptions/:from", get(Self::inscriptions_from_v1))
+        .route("/v1/tx/:txid", get(Self::transaction_v1))
         //------------------v1------------------
         .layer(Extension(index))
         .layer(Extension(page_config))
@@ -910,11 +911,47 @@ impl Server {
 
 //-------------v1 start-----------------
 
+  async fn transaction_v1(
+    Extension(page_config): Extension<Arc<PageConfig>>,
+    Extension(index): Extension<Arc<Index>>,
+    Path(txid): Path<Txid>,
+  ) -> ServerResult<Json<ExportTransaction>> {
+    let inscription = index.get_inscription_by_id(txid.into())?;
+
+    let blockhash = index.get_transaction_blockhash(txid)?;
+
+    let transaction = index
+      .get_transaction(txid)?
+      .ok_or_not_found(|| format!("transaction {txid}"))?;
+
+    Ok(Json(ExportTransaction {
+      blockhash,
+      chain: page_config.chain,
+      txid: transaction.txid(),
+      transaction,
+      inscription: inscription.map(|_| txid.into()),
+    }))
+
+
+    // Ok(
+    //   TransactionHtml::new(
+    //     index
+    //       .get_transaction(txid)?
+    //       .ok_or_not_found(|| format!("transaction {txid}"))?,
+    //     blockhash,
+    //     inscription.map(|_| txid.into()),
+    //     page_config.chain,
+    //   )
+    //     .page(page_config, index.has_sat_index()?),
+    // )
+  }
+
+
   async fn inscriptions_v1(
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
     Path(from): Path<u64>,
-  ) -> ServerResult<Json<PageData<InscriptionId>>> {
+  ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
     Self::inscriptions_inner_v1(page_config, index, Some(from)).await
   }
 
@@ -923,7 +960,7 @@ impl Server {
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
     Path(from): Path<u64>,
-  ) -> ServerResult<Json<PageData<InscriptionId>>> {
+  ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
     Self::inscriptions_inner_v1(page_config, index, Some(from)).await
   }
 
@@ -932,9 +969,9 @@ impl Server {
     page_config: Arc<PageConfig>,
     index: Arc<Index>,
     from: Option<u64>,
-  ) -> ServerResult<Json<PageData<InscriptionId>>> {
+  ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
     let (inscriptions, prev, next) = index.get_latest_inscriptions_with_prev_and_next(100, from)?;
-    Ok(Json(PageData {
+    Ok(Json(ExportInscriptions {
       data: inscriptions,
       next,
       prev,
@@ -945,7 +982,7 @@ impl Server {
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
     Path(inscription_id): Path<InscriptionId>,
-  ) -> ServerResult<Json<InscriptionDetail>> {
+  ) -> ServerResult<Json<ExportInscription>> {
     let entry = index
       .get_inscription_entry(inscription_id)?
       .ok_or_not_found(|| format!("inscription {inscription_id}"))?;
@@ -978,7 +1015,7 @@ impl Server {
 
     let next = index.get_inscription_id_by_inscription_number(entry.number + 1)?;
     let address = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) })?;
-    Ok(Json(InscriptionDetail {
+    Ok(Json(ExportInscription {
       chain: page_config.chain,
       genesis_fee: entry.fee,
       genesis_height: entry.height,
