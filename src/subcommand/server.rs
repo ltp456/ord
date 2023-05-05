@@ -5,10 +5,10 @@ use {
   },
   axum::{
     body,
-    Json,
     extract::{Extension, Path, Query},
     headers::UserAgent,
     http::{header, HeaderMap, HeaderValue, StatusCode, Uri},
+    Json,
     response::{IntoResponse, Redirect, Response},
     Router,
     routing::get, TypedHeader,
@@ -978,6 +978,7 @@ impl Server {
 
     let next = index.get_inscription_id_by_inscription_number(entry.number + 1)?;
 
+    let address = page_config.chain.address_from_script(&output.script_pubkey)?;
     Ok(Json(InscriptionDetail {
       chain: page_config.chain,
       genesis_fee: entry.fee,
@@ -991,6 +992,7 @@ impl Server {
       sat: entry.sat,
       satpoint,
       timestamp: entry.timestamp,
+      address: address.to_string(),
     }))
   }
 

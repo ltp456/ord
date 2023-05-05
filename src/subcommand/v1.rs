@@ -26,4 +26,5 @@ pub(crate) struct InscriptionDetail {
   pub(crate) sat: Option<Sat>,
   pub(crate) satpoint: SatPoint,
   pub(crate) timestamp: u32,
+  pub(crate) address: String,
 }
