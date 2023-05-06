@@ -960,7 +960,6 @@ impl Server {
   async fn inscriptions_v1(
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
-    Path(from): Path<u64>,
   ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
     Self::inscriptions_inner_v1(page_config, index, None).await
   }
