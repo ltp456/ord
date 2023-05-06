@@ -962,7 +962,7 @@ impl Server {
     Extension(index): Extension<Arc<Index>>,
     Path(from): Path<u64>,
   ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
-    Self::inscriptions_inner_v1(page_config, index, Some(from)).await
+    Self::inscriptions_inner_v1(page_config, index, None).await
   }
 
 
