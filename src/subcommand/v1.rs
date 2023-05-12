@@ -57,6 +57,14 @@ pub(crate) struct ExportUTXO {
 }
 
 
+#[derive(Serialize, Deserialize)]
+pub(crate) struct ExportOutput {
+  pub(crate) outpoint: OutPoint,
+  //pub(crate) list: Option<List>,
+  pub(crate) chain: Chain,
+  pub(crate) output: TxOut,
+  pub(crate) inscriptions: Vec<InscriptionId>,
+}
 
 
 

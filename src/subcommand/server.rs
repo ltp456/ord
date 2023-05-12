@@ -1,3 +1,5 @@
+use log::error;
+
 use {
   self::{
     deserialize_from_str::DeserializeFromStr,
@@ -37,7 +39,7 @@ use {
   },
 };
 
-use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportTransaction, ExportUTXO};
+use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportOutput, ExportTransaction, ExportUTXO};
 
 mod error;
 
@@ -176,6 +178,7 @@ impl Server {
         .route("/v1/inscriptions", get(Self::inscriptions_v1))
         .route("/v1/inscriptions/:from", get(Self::inscriptions_from_v1))
         .route("/v1/tx/:txid", get(Self::transaction_v1))
+        .route("/v1/output/:output", get(Self::output_v1))
         //------------------v1------------------
         .layer(Extension(index))
         .layer(Extension(page_config))
@@ -911,6 +914,52 @@ impl Server {
 
 //-------------v1 start-----------------
 
+  async fn output_v1(
+    Extension(page_config): Extension<Arc<PageConfig>>,
+    Extension(index): Extension<Arc<Index>>,
+    Path(outpoint): Path<OutPoint>,
+  ) -> ServerResult<Json<ExportOutput>> {
+    let list = if index.has_sat_index()? {
+      index.list(outpoint)?
+    } else {
+      None
+    };
+
+    let output = if outpoint == OutPoint::null() {
+      let mut value = 0;
+
+      if let Some(List::Unspent(ranges)) = &list {
+        for (start, end) in ranges {
+          value += end - start;
+        }
+      }
+
+      TxOut {
+        value,
+        script_pubkey: Script::new(),
+      }
+    } else {
+      index
+        .get_transaction(outpoint.txid)?
+        .ok_or_not_found(|| format!("output {outpoint}"))?
+        .output
+        .into_iter()
+        .nth(outpoint.vout as usize)
+        .ok_or_not_found(|| format!("output {outpoint}"))?
+    };
+
+    let inscriptions = index.get_inscriptions_on_output(outpoint)?;
+
+    Ok(Json(ExportOutput {
+      outpoint,
+      inscriptions,
+      // list,
+      chain: page_config.chain,
+      output,
+    }))
+  }
+
+
   async fn transaction_v1(
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
@@ -924,6 +973,7 @@ impl Server {
       .get_transaction(txid)?
       .ok_or_not_found(|| format!("transaction {txid}"))?;
 
+    error!("error 1 ");
     let mut inputs = Vec::new();
     for item in &transaction.input {
       inputs.push(ExportUTXO {
@@ -933,10 +983,14 @@ impl Server {
         address: Default::default(),
       });
     }
+    error!("error 2 ");
     let mut outputs = Vec::new();
     for (vout, output) in transaction.output.iter().enumerate() {
       let outpoint = OutPoint::new(transaction.txid(), vout as u32);
-      let address = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) })?;
+      let mut address = String::new();
+      if let Ok(value) = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) }) {
+        address = value.to_string();
+      }
       outputs.push(ExportUTXO {
         outpoint: outpoint.to_string(),
         value: output.value.to_string(),
@@ -945,6 +999,7 @@ impl Server {
       });
     }
 
+    error!("error 3 ");
     Ok(Json(ExportTransaction {
       blockhash,
       chain: page_config.chain,
