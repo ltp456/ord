@@ -988,7 +988,7 @@ impl Server {
   ) -> ServerResult<Json<ExportTransaction>> {
     let inscription = index.get_inscription_by_id(txid.into())?;
 
-   // let blockhash = index.get_transaction_blockhash(txid)?;
+    // let blockhash = index.get_transaction_blockhash(txid)?;
 
     let transaction = index
       .get_transaction(txid)?
@@ -1017,7 +1017,7 @@ impl Server {
       });
     }
     Ok(Json(ExportTransaction {
-     // blockhash,
+      // blockhash,
       chain: page_config.chain,
       txid: transaction.txid(),
       inputs: inputs,
@@ -1094,7 +1094,10 @@ impl Server {
     };
 
     let next = index.get_inscription_id_by_inscription_number(entry.number + 1)?;
-    let address = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) })?;
+    let mut address = String::new();
+    if let Ok(value) = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) }) {
+      address = value.to_string();
+    }
     Ok(Json(ExportInscription {
       chain: page_config.chain,
       genesis_fee: entry.fee,
@@ -1107,7 +1110,7 @@ impl Server {
       sat: entry.sat,
       timestamp: entry.timestamp,
 
-      address: address.to_string(),
+      address: address,
       offset: satpoint.offset,
       s_output: satpoint.outpoint.to_string(),
       location: satpoint.to_string(),
