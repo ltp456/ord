@@ -37,8 +37,17 @@ pub(crate) struct ExportInscription {
 
 
 #[derive(Serialize, Deserialize)]
+pub(crate) struct CheckInscriptionId {
+  pub(crate) chain: Chain,
+  pub(crate) inscription: Option<InscriptionId>,
+  pub(crate) txid: Txid,
+ // pub(crate) inputs: Vec<ExportUTXO>,
+}
+
+
+#[derive(Serialize, Deserialize)]
 pub(crate) struct ExportTransaction {
-  pub(crate) blockhash: Option<BlockHash>,
+ // pub(crate) blockhash: Option<BlockHash>,
   pub(crate) chain: Chain,
   pub(crate) inscription: Option<InscriptionId>,
   pub(crate) transaction: Transaction,
@@ -63,6 +72,7 @@ pub(crate) struct ExportOutput {
   //pub(crate) list: Option<List>,
   pub(crate) chain: Chain,
   pub(crate) output: TxOut,
+  pub(crate) address: String,
   pub(crate) inscriptions: Vec<InscriptionId>,
 }
 

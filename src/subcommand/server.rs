@@ -39,7 +39,7 @@ use {
   },
 };
 
-use crate::subcommand::v1::{ExportInscription, ExportInscriptions, ExportOutput, ExportTransaction, ExportUTXO};
+use crate::subcommand::v1::{CheckInscriptionId, ExportInscription, ExportInscriptions, ExportOutput, ExportTransaction, ExportUTXO};
 
 mod error;
 
@@ -178,6 +178,7 @@ impl Server {
         .route("/v1/inscriptions", get(Self::inscriptions_v1))
         .route("/v1/inscriptions/:from", get(Self::inscriptions_from_v1))
         .route("/v1/tx/:txid", get(Self::transaction_v1))
+        .route("/v1/check/:txid", get(Self::check_inscription_id))
         .route("/v1/output/:output", get(Self::output_v1))
         //------------------v1------------------
         .layer(Extension(index))
@@ -950,12 +951,32 @@ impl Server {
 
     let inscriptions = index.get_inscriptions_on_output(outpoint)?;
 
+    let mut address = String::new();
+    if let Ok(value) = page_config.chain.address_from_script(&output.script_pubkey).map_err(|e| { ServerError::Internal(e.into()) }) {
+      address = value.to_string();
+    }
+
     Ok(Json(ExportOutput {
       outpoint,
       inscriptions,
       // list,
+      address,
       chain: page_config.chain,
       output,
+    }))
+  }
+
+
+  async fn check_inscription_id(
+    Extension(page_config): Extension<Arc<PageConfig>>,
+    Extension(index): Extension<Arc<Index>>,
+    Path(txid): Path<Txid>,
+  ) -> ServerResult<Json<CheckInscriptionId>> {
+    let inscription = index.get_inscription_by_id(txid.into())?;
+    Ok(Json(CheckInscriptionId {
+      chain: page_config.chain,
+      inscription: inscription.map(|_| txid.into()),
+      txid,
     }))
   }
 
@@ -967,13 +988,11 @@ impl Server {
   ) -> ServerResult<Json<ExportTransaction>> {
     let inscription = index.get_inscription_by_id(txid.into())?;
 
-    let blockhash = index.get_transaction_blockhash(txid)?;
+   // let blockhash = index.get_transaction_blockhash(txid)?;
 
     let transaction = index
       .get_transaction(txid)?
       .ok_or_not_found(|| format!("transaction {txid}"))?;
-
-    error!("error 1 ");
     let mut inputs = Vec::new();
     for item in &transaction.input {
       inputs.push(ExportUTXO {
@@ -983,7 +1002,6 @@ impl Server {
         address: Default::default(),
       });
     }
-    error!("error 2 ");
     let mut outputs = Vec::new();
     for (vout, output) in transaction.output.iter().enumerate() {
       let outpoint = OutPoint::new(transaction.txid(), vout as u32);
@@ -998,10 +1016,8 @@ impl Server {
         address: address.to_string(),
       });
     }
-
-    error!("error 3 ");
     Ok(Json(ExportTransaction {
-      blockhash,
+     // blockhash,
       chain: page_config.chain,
       txid: transaction.txid(),
       inputs: inputs,
