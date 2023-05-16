@@ -138,7 +138,7 @@ pub struct InscriptionParser<'a> {
 }
 
 impl<'a> InscriptionParser<'a> {
-  fn parse(witness: &Witness) -> Result<Inscription> {
+ pub  fn parse(witness: &Witness) -> Result<Inscription> {
     if witness.is_empty() {
       return Err(InscriptionError::EmptyWitness);
     }
@@ -171,7 +171,7 @@ impl<'a> InscriptionParser<'a> {
     .parse_script()
   }
 
-  fn parse_script(mut self) -> Result<Inscription> {
+  pub fn parse_script(mut self) -> Result<Inscription> {
     loop {
       let next = self.advance()?;
 
@@ -183,7 +183,7 @@ impl<'a> InscriptionParser<'a> {
     }
   }
 
-  fn advance(&mut self) -> Result<Instruction<'a>> {
+  pub  fn advance(&mut self) -> Result<Instruction<'a>> {
     self
       .instructions
       .next()
@@ -191,7 +191,7 @@ impl<'a> InscriptionParser<'a> {
       .map_err(InscriptionError::Script)
   }
 
-  fn parse_inscription(&mut self) -> Result<Option<Inscription>> {
+  pub  fn parse_inscription(&mut self) -> Result<Option<Inscription>> {
     if self.advance()? == Instruction::Op(opcodes::all::OP_IF) {
       if !self.accept(Instruction::PushBytes(PROTOCOL_ID))? {
         return Err(InscriptionError::NoInscription);
@@ -237,14 +237,14 @@ impl<'a> InscriptionParser<'a> {
     Ok(None)
   }
 
-  fn expect_push(&mut self) -> Result<&'a [u8]> {
+  pub fn expect_push(&mut self) -> Result<&'a [u8]> {
     match self.advance()? {
       Instruction::PushBytes(bytes) => Ok(bytes),
       _ => Err(InscriptionError::InvalidInscription),
     }
   }
 
-  fn accept(&mut self, instruction: Instruction) -> Result<bool> {
+  pub fn accept(&mut self, instruction: Instruction) -> Result<bool> {
     match self.instructions.peek() {
       Some(Ok(next)) => {
         if *next == instruction {
