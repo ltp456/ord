@@ -122,7 +122,7 @@ impl Inscription {
 }
 
 #[derive(Debug, PartialEq)]
-enum InscriptionError {
+pub enum InscriptionError {
   EmptyWitness,
   InvalidInscription,
   KeyPathSpend,
@@ -133,7 +133,7 @@ enum InscriptionError {
 
 type Result<T, E = InscriptionError> = std::result::Result<T, E>;
 
-struct InscriptionParser<'a> {
+pub struct InscriptionParser<'a> {
   instructions: Peekable<Instructions<'a>>,
 }
 
