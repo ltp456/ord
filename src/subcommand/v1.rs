@@ -41,13 +41,15 @@ pub(crate) struct CheckInscriptionId {
   pub(crate) chain: Chain,
   pub(crate) inscription: Option<InscriptionId>,
   pub(crate) txid: Txid,
- // pub(crate) inputs: Vec<ExportUTXO>,
+  pub(crate) number: u64,
+  pub(crate) height: u64,
+  // pub(crate) inputs: Vec<ExportUTXO>,
 }
 
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct ExportTransaction {
- // pub(crate) blockhash: Option<BlockHash>,
+  // pub(crate) blockhash: Option<BlockHash>,
   pub(crate) chain: Chain,
   pub(crate) inscription: Option<InscriptionId>,
   pub(crate) transaction: Transaction,

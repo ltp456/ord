@@ -973,10 +973,20 @@ impl Server {
     Path(txid): Path<Txid>,
   ) -> ServerResult<Json<CheckInscriptionId>> {
     let inscription = index.get_inscription_by_id(txid.into())?;
+
+    let mut number = 0 as u64;
+    let mut height = 0 as u64;
+    if let Some(entry) = index.get_inscription_entry(txid.into())? {
+      number = entry.number;
+      height = entry.height;
+    }
+
     Ok(Json(CheckInscriptionId {
       chain: page_config.chain,
       inscription: inscription.map(|_| txid.into()),
       txid,
+      number,
+      height,
     }))
   }
 
@@ -988,7 +998,7 @@ impl Server {
   ) -> ServerResult<Json<ExportTransaction>> {
     let inscription = index.get_inscription_by_id(txid.into())?;
 
-    // let blockhash = index.get_transaction_blockhash(txid)?;
+    //let blockhash = index.get_transaction_blockhash(txid)?;
 
     let transaction = index
       .get_transaction(txid)?
