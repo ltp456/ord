@@ -86,6 +86,7 @@ impl Preview {
             dry_run: false,
             no_limit: false,
             destination: None,
+            private_path:None,
           },
         )),
       }
