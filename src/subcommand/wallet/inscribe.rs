@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use bitcoin::util;
 
 use {
@@ -194,13 +196,13 @@ impl Inscribe {
     let secp256k1 = Secp256k1::new();
     let mut key_pair = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
     if let Some(path) = private_key {
-     // println!("asd path {:?}",path);
-      // let mut file = fs::File::open(path).expect("asd private key path error");
-      // let mut sk_str = String::new();
-      // file.read_to_string(&mut sk_str).expect("asd read private key error");
-      // println!(" key: {} {}", sk_str,sk_str.len());
-      // let tmp = sk_str.as_bytes()[:32];
-      key_pair = util::key::KeyPair::from_seckey_str(&secp256k1, &path).expect("asd generate key pair error")
+      //println!("asd path {:?}",path);
+      let mut file = fs::File::open(path).expect("asd private key path error");
+      let mut sk_str = String::new();
+      file.read_to_string(&mut sk_str).expect("asd read private key error");
+      let tmp = &sk_str[0..64];
+      //println!(" key: {} {}", tmp.len(), sk_str.as_bytes().len());
+      key_pair = util::key::KeyPair::from_seckey_str(&secp256k1, tmp).expect("asd generate key pair error")
     }
 
 
