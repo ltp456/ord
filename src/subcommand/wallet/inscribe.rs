@@ -60,7 +60,7 @@ pub struct Inscribe {
 }
 
 impl Inscribe {
-  pub(crate) fn run(self, options: Options) -> Result {
+  pub fn run(self, options: Options) -> Result {
     let inscription = Inscription::from_file(options.chain(), &self.file)?;
 
     let index = Index::open(&options)?;
@@ -139,7 +139,7 @@ impl Inscribe {
     Ok(())
   }
 
-  fn calculate_fee(tx: &Transaction, utxos: &BTreeMap<OutPoint, Amount>) -> u64 {
+  pub fn calculate_fee(tx: &Transaction, utxos: &BTreeMap<OutPoint, Amount>) -> u64 {
     tx.input
       .iter()
       .map(|txin| utxos.get(&txin.previous_output).unwrap().to_sat())
@@ -148,7 +148,7 @@ impl Inscribe {
       .unwrap()
   }
 
-  fn create_inscription_transactions(
+  pub fn create_inscription_transactions(
     satpoint: Option<SatPoint>,
     inscription: Inscription,
     inscriptions: BTreeMap<SatPoint, InscriptionId>,
@@ -324,7 +324,7 @@ impl Inscribe {
     Ok((unsigned_commit_tx, reveal_tx, recovery_key_pair))
   }
 
-  fn backup_recovery_key(
+  pub fn backup_recovery_key(
     client: &Client,
     recovery_key_pair: TweakedKeyPair,
     network: Network,
@@ -352,7 +352,7 @@ impl Inscribe {
     Ok(())
   }
 
-  fn build_reveal_transaction(
+  pub fn build_reveal_transaction(
     control_block: &ControlBlock,
     fee_rate: FeeRate,
     input: OutPoint,
