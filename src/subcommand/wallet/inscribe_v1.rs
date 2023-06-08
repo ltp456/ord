@@ -91,7 +91,6 @@ impl Inscribe {
         self.commit_fee_rate.unwrap_or(self.fee_rate),
         self.fee_rate,
         self.no_limit,
-        self.private_path,
       )?;
 
     utxos.insert(
@@ -159,7 +158,6 @@ impl Inscribe {
     commit_fee_rate: FeeRate,
     reveal_fee_rate: FeeRate,
     no_limit: bool,
-    private_key: Option<String>,
   ) -> Result<(Transaction, Transaction, TweakedKeyPair)> {
     let satpoint = if let Some(satpoint) = satpoint {
       satpoint
@@ -195,18 +193,7 @@ impl Inscribe {
 
     let secp256k1 = Secp256k1::new();
     let mut key_pair = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
-    if let Some(path) = private_key {
-      //println!("asd path {:?}",path);
-      let mut file = fs::File::open(path).expect("asd private key path error");
-      let mut sk_str = String::new();
-      file.read_to_string(&mut sk_str).expect("asd read private key error");
-      let tmp = &sk_str[0..64];
-      //println!(" key: {} {}", tmp.len(), sk_str.as_bytes().len());
-      key_pair = util::key::KeyPair::from_seckey_str(&secp256k1, tmp).expect("asd generate key pair error")
-    }
 
-
-    //let sk_str = "688C77BC2D5AAFF5491CF309D4753B732135470D05B7B2CD21ADD0744FE97BEF";
     let (public_key, _parity) = XOnlyPublicKey::from_keypair(&key_pair);
 
     let reveal_script = inscription.append_reveal_script(
