@@ -353,5 +353,5 @@ impl Inscribe {
 #[cfg(test)]
 mod tests {
   use super::*;
-  
+
 }
