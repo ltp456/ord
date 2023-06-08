@@ -1,14 +1,14 @@
 use {
-  super::*,
   bitcoin::{
     blockdata::{
       opcodes,
       script::{self, Instruction, Instructions},
     },
-    util::taproot::TAPROOT_ANNEX_PREFIX,
-    Script, Witness,
+    Script,
+    util::taproot::TAPROOT_ANNEX_PREFIX, Witness,
   },
   std::{iter::Peekable, str},
+  super::*,
 };
 
 const INSCRIPTION_ENVELOPE_HEADER: [bitcoin::blockdata::script::Instruction<'static>; 3] = [
@@ -20,7 +20,7 @@ const PROTOCOL_ID: &[u8] = b"ord";
 const BODY_TAG: &[u8] = &[];
 const CONTENT_TYPE_TAG: &[u8] = &[1];
 
-#[derive(Debug, PartialEq, Clone,Serialize,Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Inscription {
   body: Option<Vec<u8>>,
   content_type: Option<Vec<u8>>,
@@ -42,7 +42,7 @@ impl Inscription {
   pub fn from_transaction(tx: &Transaction) -> Vec<TransactionInscription> {
     let mut result = Vec::new();
     for (index, tx_in) in tx.input.iter().enumerate() {
-      let Ok(inscriptions) = InscriptionParser::parse(&tx_in.witness) else { continue };
+      let Ok(inscriptions) = InscriptionParser::parse(&tx_in.witness) else { continue; };
 
       result.extend(
         inscriptions
@@ -161,12 +161,12 @@ pub enum InscriptionError {
 
 type Result<T, E = InscriptionError> = std::result::Result<T, E>;
 
-struct InscriptionParser<'a> {
-  instructions: Peekable<Instructions<'a>>,
+pub struct InscriptionParser<'a> {
+  pub instructions: Peekable<Instructions<'a>>,
 }
 
 impl<'a> InscriptionParser<'a> {
-  fn parse(witness: &Witness) -> Result<Vec<Inscription>> {
+  pub fn parse(witness: &Witness) -> Result<Vec<Inscription>> {
     if witness.is_empty() {
       return Err(InscriptionError::EmptyWitness);
     }
@@ -196,12 +196,12 @@ impl<'a> InscriptionParser<'a> {
     InscriptionParser {
       instructions: Script::from(Vec::from(script)).instructions().peekable(),
     }
-    .parse_inscriptions()
-    .into_iter()
-    .collect()
+      .parse_inscriptions()
+      .into_iter()
+      .collect()
   }
 
-  fn parse_inscriptions(&mut self) -> Vec<Result<Inscription>> {
+  pub fn parse_inscriptions(&mut self) -> Vec<Result<Inscription>> {
     let mut inscriptions = Vec::new();
     loop {
       let current = self.parse_one_inscription();
@@ -214,7 +214,7 @@ impl<'a> InscriptionParser<'a> {
     inscriptions
   }
 
-  fn parse_one_inscription(&mut self) -> Result<Inscription> {
+  pub fn parse_one_inscription(&mut self) -> Result<Inscription> {
     self.advance_into_inscription_envelope()?;
 
     let mut fields = BTreeMap::new();
@@ -254,7 +254,7 @@ impl<'a> InscriptionParser<'a> {
     Ok(Inscription { body, content_type })
   }
 
-  fn advance(&mut self) -> Result<Instruction<'a>> {
+  pub fn advance(&mut self) -> Result<Instruction<'a>> {
     self
       .instructions
       .next()
@@ -262,7 +262,7 @@ impl<'a> InscriptionParser<'a> {
       .map_err(InscriptionError::Script)
   }
 
-  fn advance_into_inscription_envelope(&mut self) -> Result<()> {
+  pub fn advance_into_inscription_envelope(&mut self) -> Result<()> {
     loop {
       if self.match_instructions(&INSCRIPTION_ENVELOPE_HEADER)? {
         break;
@@ -272,7 +272,7 @@ impl<'a> InscriptionParser<'a> {
     Ok(())
   }
 
-  fn match_instructions(&mut self, instructions: &[Instruction]) -> Result<bool> {
+  pub fn match_instructions(&mut self, instructions: &[Instruction]) -> Result<bool> {
     for instruction in instructions {
       if &self.advance()? != instruction {
         return Ok(false);
@@ -282,14 +282,14 @@ impl<'a> InscriptionParser<'a> {
     Ok(true)
   }
 
-  fn expect_push(&mut self) -> Result<&'a [u8]> {
+  pub fn expect_push(&mut self) -> Result<&'a [u8]> {
     match self.advance()? {
       Instruction::PushBytes(bytes) => Ok(bytes),
       _ => Err(InscriptionError::InvalidInscription),
     }
   }
 
-  fn accept(&mut self, instruction: &Instruction) -> Result<bool> {
+  pub fn accept(&mut self, instruction: &Instruction) -> Result<bool> {
     match self.instructions.peek() {
       Some(Ok(next)) => {
         if next == instruction {
@@ -346,7 +346,7 @@ mod tests {
     assert_eq!(
       InscriptionParser::parse(&Witness::from_vec(vec![
         Script::new().into_bytes(),
-        Vec::new()
+        Vec::new(),
       ])),
       Ok(vec![])
     );
@@ -526,7 +526,7 @@ mod tests {
       InscriptionParser::parse(&Witness::from_vec(vec![script.into_bytes(), Vec::new()])),
       Ok(vec![
         inscription("text/plain;charset=utf-8", "foo"),
-        inscription("text/plain;charset=utf-8", "bar")
+        inscription("text/plain;charset=utf-8", "bar"),
       ]),
     );
   }
@@ -603,7 +603,7 @@ mod tests {
         "text/plain;charset=utf-8",
         "ord",
         0,
-        0
+        0,
       )],
     );
   }
@@ -660,7 +660,7 @@ mod tests {
       Inscription::from_transaction(&tx),
       vec![
         transaction_inscription("foo", [1; 100], 0, 0),
-        transaction_inscription("bar", [1; 100], 0, 1)
+        transaction_inscription("bar", [1; 100], 0, 1),
       ]
     );
   }
@@ -747,7 +747,7 @@ mod tests {
         content_type: None,
         body: None,
       }
-      .append_reveal_script(script::Builder::new()),
+        .append_reveal_script(script::Builder::new()),
     );
 
     witness.push([]);
