@@ -972,7 +972,7 @@ impl Server {
   ) -> ServerResult<Json<CheckInscriptionId>> {
     let inscription = index.get_inscription_by_id(txid.into())?;
 
-    let mut number = 0 as u64;
+    let mut number = 0 as i64;
     let mut height = 0 as u64;
     if let Some(entry) = index.get_inscription_entry(txid.into())? {
       number = entry.number;
@@ -1047,7 +1047,7 @@ impl Server {
   async fn inscriptions_from_v1(
     Extension(page_config): Extension<Arc<PageConfig>>,
     Extension(index): Extension<Arc<Index>>,
-    Path(from): Path<u64>,
+    Path(from): Path<i64>,
   ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
     Self::inscriptions_inner_v1(page_config, index, Some(from)).await
   }
@@ -1056,7 +1056,7 @@ impl Server {
   async fn inscriptions_inner_v1(
     page_config: Arc<PageConfig>,
     index: Arc<Index>,
-    from: Option<u64>,
+    from: Option<i64>,
   ) -> ServerResult<Json<ExportInscriptions<InscriptionId>>> {
     let (inscriptions, prev, next) = index.get_latest_inscriptions_with_prev_and_next(100, from)?;
     Ok(Json(ExportInscriptions {

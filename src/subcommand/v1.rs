@@ -7,8 +7,8 @@ use {
 #[derive(Serialize, Deserialize)]
 pub struct ExportInscriptions<T> {
   pub data: Vec<T>,
-  pub next: Option<u64>,
-  pub prev: Option<u64>,
+  pub next: Option<i64>,
+  pub prev: Option<i64>,
 }
 
 
@@ -20,7 +20,7 @@ pub(crate) struct ExportInscription {
   pub(crate) inscription: Inscription,
   pub(crate) inscription_id: InscriptionId,
   pub(crate) next: Option<InscriptionId>,
-  pub(crate) number: u64,
+  pub(crate) number: i64,
   pub(crate) output: TxOut,
   pub(crate) previous: Option<InscriptionId>,
   pub(crate) sat: Option<Sat>,
@@ -41,7 +41,7 @@ pub(crate) struct CheckInscriptionId {
   pub(crate) chain: Chain,
   pub(crate) inscription: Option<InscriptionId>,
   pub(crate) txid: Txid,
-  pub(crate) number: u64,
+  pub(crate) number: i64,
   pub(crate) height: u64,
   // pub(crate) inputs: Vec<ExportUTXO>,
 }
