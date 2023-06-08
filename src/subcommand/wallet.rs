@@ -1,16 +1,16 @@
 use {
-  super::*,
-  bitcoin::secp256k1::{
-    rand::{self, RngCore},
-    All, Secp256k1,
-  },
   bitcoin::{
-    util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, Fingerprint},
     Network,
+    util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey, Fingerprint},
+  },
+  bitcoin::secp256k1::{
+    All,
+    rand::{self, RngCore}, Secp256k1,
   },
   bitcoincore_rpc::bitcoincore_rpc_json::{ImportDescriptors, Timestamp},
   fee_rate::FeeRate,
   miniscript::descriptor::{Descriptor, DescriptorSecretKey, DescriptorXKey, Wildcard},
+  super::*,
   transaction_builder::TransactionBuilder,
 };
 
@@ -18,6 +18,7 @@ pub mod balance;
 pub mod cardinals;
 pub mod create;
 pub mod inscribe;
+pub mod inscribe_v1;
 pub mod inscriptions;
 pub mod outputs;
 pub mod receive;
