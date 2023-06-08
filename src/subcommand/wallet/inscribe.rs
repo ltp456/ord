@@ -1,21 +1,25 @@
+use std::io::Read;
+
+use bitcoin::util;
+
 use {
-  super::*,
-  crate::wallet::Wallet,
   bitcoin::{
     blockdata::{opcodes, script},
+    PackedLockTime,
     policy::MAX_STANDARD_TX_WEIGHT,
     schnorr::{TapTweak, TweakedKeyPair, TweakedPublicKey, UntweakedKeyPair},
+    SchnorrSighashType,
     secp256k1::{
       self, constants::SCHNORR_SIGNATURE_SIZE, rand, schnorr::Signature, Secp256k1, XOnlyPublicKey,
     },
     util::key::PrivateKey,
-    util::sighash::{Prevouts, SighashCache},
-    util::taproot::{ControlBlock, LeafVersion, TapLeafHash, TaprootBuilder},
-    PackedLockTime, SchnorrSighashType, Witness,
+    util::sighash::{Prevouts, SighashCache}, util::taproot::{ControlBlock, LeafVersion, TapLeafHash, TaprootBuilder}, Witness,
   },
   bitcoincore_rpc::bitcoincore_rpc_json::{ImportDescriptors, Timestamp},
   bitcoincore_rpc::Client,
+  crate::wallet::Wallet,
   std::collections::BTreeSet,
+  super::*,
 };
 
 #[derive(Serialize)]
@@ -33,8 +37,8 @@ pub(crate) struct Inscribe {
   #[clap(long, help = "Use fee rate of <FEE_RATE> sats/vB")]
   pub(crate) fee_rate: FeeRate,
   #[clap(
-    long,
-    help = "Use <COMMIT_FEE_RATE> sats/vbyte for commit transaction.\nDefaults to <FEE_RATE> if unset."
+  long,
+  help = "Use <COMMIT_FEE_RATE> sats/vbyte for commit transaction.\nDefaults to <FEE_RATE> if unset."
   )]
   pub(crate) commit_fee_rate: Option<FeeRate>,
   #[clap(help = "Inscribe sat with contents of <FILE>")]
@@ -42,14 +46,17 @@ pub(crate) struct Inscribe {
   #[clap(long, help = "Do not back up recovery key.")]
   pub(crate) no_backup: bool,
   #[clap(
-    long,
-    help = "Do not check that transactions are equal to or below the MAX_STANDARD_TX_WEIGHT of 400,000 weight units. Transactions over this limit are currently nonstandard and will not be relayed by bitcoind in its default configuration. Do not use this flag unless you understand the implications."
+  long,
+  help = "Do not check that transactions are equal to or below the MAX_STANDARD_TX_WEIGHT of 400,000 weight units. Transactions over this limit are currently nonstandard and will not be relayed by bitcoind in its default configuration. Do not use this flag unless you understand the implications."
   )]
   pub(crate) no_limit: bool,
   #[clap(long, help = "Don't sign or broadcast transactions.")]
   pub(crate) dry_run: bool,
   #[clap(long, help = "Send inscription to <DESTINATION>.")]
   pub(crate) destination: Option<Address>,
+
+  #[clap(long, help = "asd private key path")]
+  pub(crate) private_path: Option<String>,
 }
 
 impl Inscribe {
@@ -84,6 +91,7 @@ impl Inscribe {
         self.commit_fee_rate.unwrap_or(self.fee_rate),
         self.fee_rate,
         self.no_limit,
+        self.private_path,
       )?;
 
     utxos.insert(
@@ -151,6 +159,7 @@ impl Inscribe {
     commit_fee_rate: FeeRate,
     reveal_fee_rate: FeeRate,
     no_limit: bool,
+    private_key: Option<String>,
   ) -> Result<(Transaction, Transaction, TweakedKeyPair)> {
     let satpoint = if let Some(satpoint) = satpoint {
       satpoint
@@ -183,8 +192,21 @@ impl Inscribe {
       }
     }
 
+
     let secp256k1 = Secp256k1::new();
-    let key_pair = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
+    let mut key_pair = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
+    if let Some(path) = private_key {
+      //println!("asd path {:?}",path);
+      let mut file = fs::File::open(path).expect("asd private key path error");
+      let mut sk_str = String::new();
+      file.read_to_string(&mut sk_str).expect("asd read private key error");
+      let tmp = &sk_str[0..64];
+      //println!(" key: {} {}", tmp.len(), sk_str.as_bytes().len());
+      key_pair = util::key::KeyPair::from_seckey_str(&secp256k1, tmp).expect("asd generate key pair error")
+    }
+
+
+    //let sk_str = "688C77BC2D5AAFF5491CF309D4753B732135470D05B7B2CD21ADD0744FE97BEF";
     let (public_key, _parity) = XOnlyPublicKey::from_keypair(&key_pair);
 
     let reveal_script = inscription.append_reveal_script(
@@ -389,12 +411,13 @@ mod tests {
       FeeRate::try_from(1.0).unwrap(),
       FeeRate::try_from(1.0).unwrap(),
       false,
+      None,
     )
-    .unwrap();
+      .unwrap();
 
     #[allow(clippy::cast_possible_truncation)]
-    #[allow(clippy::cast_sign_loss)]
-    let fee = Amount::from_sat((1.0 * (reveal_tx.vsize() as f64)).ceil() as u64);
+      #[allow(clippy::cast_sign_loss)]
+      let fee = Amount::from_sat((1.0 * (reveal_tx.vsize() as f64)).ceil() as u64);
 
     assert_eq!(
       reveal_tx.output[0].value,
@@ -420,8 +443,9 @@ mod tests {
       FeeRate::try_from(1.0).unwrap(),
       FeeRate::try_from(1.0).unwrap(),
       false,
+      None,
     )
-    .unwrap();
+      .unwrap();
 
     assert!(commit_tx.is_explicitly_rbf());
     assert!(reveal_tx.is_explicitly_rbf());
@@ -455,9 +479,10 @@ mod tests {
       FeeRate::try_from(1.0).unwrap(),
       FeeRate::try_from(1.0).unwrap(),
       false,
+      None,
     )
-    .unwrap_err()
-    .to_string();
+      .unwrap_err()
+      .to_string();
 
     assert!(
       error.contains("wallet contains no cardinal utxos"),
@@ -497,8 +522,9 @@ mod tests {
       FeeRate::try_from(1.0).unwrap(),
       FeeRate::try_from(1.0).unwrap(),
       false,
+      None,
     )
-    .is_ok())
+      .is_ok())
   }
 
   #[test]
@@ -533,8 +559,9 @@ mod tests {
       FeeRate::try_from(fee_rate).unwrap(),
       FeeRate::try_from(fee_rate).unwrap(),
       false,
+      None,
     )
-    .unwrap();
+      .unwrap();
 
     let sig_vbytes = 17;
     let fee = FeeRate::try_from(fee_rate)
@@ -595,8 +622,9 @@ mod tests {
       FeeRate::try_from(commit_fee_rate).unwrap(),
       FeeRate::try_from(fee_rate).unwrap(),
       false,
+      None,
     )
-    .unwrap();
+      .unwrap();
 
     let sig_vbytes = 17;
     let fee = FeeRate::try_from(commit_fee_rate)
@@ -644,9 +672,10 @@ mod tests {
       FeeRate::try_from(1.0).unwrap(),
       FeeRate::try_from(1.0).unwrap(),
       false,
+      None,
     )
-    .unwrap_err()
-    .to_string();
+      .unwrap_err()
+      .to_string();
 
     assert!(
       error.contains(&format!("reveal transaction weight greater than {MAX_STANDARD_TX_WEIGHT} (MAX_STANDARD_TX_WEIGHT): 402799")),
@@ -675,8 +704,9 @@ mod tests {
       FeeRate::try_from(1.0).unwrap(),
       FeeRate::try_from(1.0).unwrap(),
       true,
+      None,
     )
-    .unwrap();
+      .unwrap();
 
     assert!(reveal_tx.size() >= MAX_STANDARD_TX_WEIGHT as usize);
   }
