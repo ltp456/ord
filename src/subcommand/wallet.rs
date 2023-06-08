@@ -17,14 +17,14 @@ use {
 pub mod balance;
 pub mod cardinals;
 pub mod create;
-pub(crate) mod inscribe;
+pub mod inscribe;
 pub mod inscriptions;
 pub mod outputs;
 pub mod receive;
-mod restore;
+pub mod restore;
 pub mod sats;
 pub mod send;
-pub(crate) mod transaction_builder;
+pub mod transaction_builder;
 pub mod transactions;
 
 #[derive(Debug, Parser)]
