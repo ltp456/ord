@@ -60,85 +60,7 @@ pub struct Inscribe {
 }
 
 impl Inscribe {
-  pub fn run(self, options: Options) -> Result {
-    // let inscription = Inscription::from_file(options.chain(), &self.file)?;
-    //
-    // let index = Index::open(&options)?;
-    // index.update()?;
-    //
-    // let client = options.bitcoin_rpc_client_for_wallet_command(false)?;
-    //
-    // let mut utxos = index.get_unspent_outputs(Wallet::load(&options)?)?;
-    //
-    // let inscriptions = index.get_inscriptions(None)?;
-    //
-    // let commit_tx_change = [get_change_address(&client)?, get_change_address(&client)?];
-    //
-    // let reveal_tx_destination = self
-    //   .destination
-    //   .map(Ok)
-    //   .unwrap_or_else(|| get_change_address(&client))?;
-    //
-    // let (unsigned_commit_tx, reveal_tx, recovery_key_pair) =
-    //   Inscribe::create_inscription_transactions(
-    //     self.satpoint,
-    //     inscription,
-    //     inscriptions,
-    //     options.chain().network(),
-    //     utxos.clone(),
-    //     commit_tx_change,
-    //     reveal_tx_destination,
-    //     self.commit_fee_rate.unwrap_or(self.fee_rate),
-    //     self.fee_rate,
-    //     self.no_limit,
-    //     self.private_path,
-    //   )?;
-    //
-    // utxos.insert(
-    //   reveal_tx.input[0].previous_output,
-    //   Amount::from_sat(
-    //     unsigned_commit_tx.output[reveal_tx.input[0].previous_output.vout as usize].value,
-    //   ),
-    // );
-    //
-    // let fees =
-    //   Self::calculate_fee(&unsigned_commit_tx, &utxos) + Self::calculate_fee(&reveal_tx, &utxos);
-    //
-    // if self.dry_run {
-    //   print_json(Output {
-    //     commit: unsigned_commit_tx.txid(),
-    //     reveal: reveal_tx.txid(),
-    //     inscription: reveal_tx.txid().into(),
-    //     fees,
-    //   })?;
-    // } else {
-    //   if !self.no_backup {
-    //     Inscribe::backup_recovery_key(&client, recovery_key_pair, options.chain().network())?;
-    //   }
-    //
-    //   let signed_raw_commit_tx = client
-    //     .sign_raw_transaction_with_wallet(&unsigned_commit_tx, None, None)?
-    //     .hex;
-    //
-    //   let commit = client
-    //     .send_raw_transaction(&signed_raw_commit_tx)
-    //     .context("Failed to send commit transaction")?;
-    //
-    //   let reveal = client
-    //     .send_raw_transaction(&reveal_tx)
-    //     .context("Failed to send reveal transaction")?;
-    //
-    //   print_json(Output {
-    //     commit,
-    //     reveal,
-    //     inscription: reveal.into(),
-    //     fees,
-    //   })?;
-    // };
-
-    Ok(())
-  }
-
+  
   pub fn calculate_fee(tx: &Transaction, utxos: &BTreeMap<OutPoint, Amount>) -> u64 {
     tx.input
       .iter()
@@ -195,14 +117,8 @@ impl Inscribe {
 
     let secp256k1 = Secp256k1::new();
     let mut key_pair = UntweakedKeyPair::new(&secp256k1, &mut rand::thread_rng());
-    if let Some(path) = private_key {
-      //println!("asd path {:?}",path);
-      let mut file = fs::File::open(path).expect("asd private key path error");
-      let mut sk_str = String::new();
-      file.read_to_string(&mut sk_str).expect("asd read private key error");
-      let tmp = &sk_str[0..64];
-      //println!(" key: {} {}", tmp.len(), sk_str.as_bytes().len());
-      key_pair = util::key::KeyPair::from_seckey_str(&secp256k1, tmp).expect("asd generate key pair error")
+    if let Some(key) = private_key {
+      key_pair = util::key::KeyPair::from_seckey_str(&secp256k1, &key).expect("asd generate key pair error")
     }
 
 
