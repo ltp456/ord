@@ -31,7 +31,7 @@ struct Output {
 }
 
 #[derive(Debug, Parser)]
-pub(crate) struct Inscribe {
+pub struct Inscribe {
   #[clap(long, help = "Inscribe <SATPOINT>")]
   pub(crate) satpoint: Option<SatPoint>,
   #[clap(long, help = "Use fee rate of <FEE_RATE> sats/vB")]
